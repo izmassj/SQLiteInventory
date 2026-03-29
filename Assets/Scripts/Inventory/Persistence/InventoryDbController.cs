@@ -11,6 +11,7 @@ public sealed class InventoryDbController : MonoBehaviour
     private ItemsRepository _itemsRepo;
     private InventoryRepository _invRepo;
     private InventoryAuditRepository _auditRepo;
+    private PlayerRepository _playerRepo;
 
     private bool _ready;
 
@@ -26,11 +27,12 @@ public sealed class InventoryDbController : MonoBehaviour
         _itemsRepo = new ItemsRepository(db);
         _invRepo = new InventoryRepository(db);
         _auditRepo = new InventoryAuditRepository(db);
+        _playerRepo = new PlayerRepository(db);
     }
 
     private IEnumerator Start()
     {
-        if (_itemsRepo == null || _invRepo == null)
+        if (_itemsRepo == null || _invRepo == null || _playerRepo == null)
             yield break;
 
         if (SessionManager.Instance == null || !SessionManager.Instance.IsLoggedIn)
@@ -41,6 +43,7 @@ public sealed class InventoryDbController : MonoBehaviour
             yield break;
         }
 
+        _playerRepo.EnsurePlayer(SessionManager.Instance.UserId);
         SyncItemsFromResources();
 
         float timeoutAt = Time.unscaledTime + 5f;
@@ -53,7 +56,7 @@ public sealed class InventoryDbController : MonoBehaviour
             yield break;
         }
 
-        LoadInventoryFromDb();
+        RefreshFromDatabase();
 
         Inventory.Instance.ItemQuantityChanged += OnInventoryQuantityChanged;
 
@@ -66,6 +69,19 @@ public sealed class InventoryDbController : MonoBehaviour
             Inventory.Instance.ItemQuantityChanged -= OnInventoryQuantityChanged;
     }
 
+    public void RefreshFromDatabase()
+    {
+        LoadInventoryFromDb();
+    }
+
+    public int GetCurrentMoney()
+    {
+        if (SessionManager.Instance == null || !SessionManager.Instance.IsLoggedIn || _playerRepo == null)
+            return 0;
+
+        return _playerRepo.GetMoney(SessionManager.Instance.UserId);
+    }
+
     private void SyncItemsFromResources()
     {
         ItemCatalog.Warmup();
@@ -75,8 +91,8 @@ public sealed class InventoryDbController : MonoBehaviour
             if (item == null) continue;
 
             _itemsRepo.GetOrCreateItemId(
-                name: item.name,                        
-                type: item.type.ToString(),            
+                name: item.name,
+                type: item.type.ToString(),
                 description: item.description,
                 maxStack: Mathf.Max(1, item.maxStack)
             );
@@ -99,7 +115,7 @@ public sealed class InventoryDbController : MonoBehaviour
         Inventory.Instance.BeginBulkUpdate();
         try
         {
-            Inventory.Instance.ClearInventory();
+            Inventory.Instance.ClearInventory(false);
 
             foreach (var row in rows)
             {

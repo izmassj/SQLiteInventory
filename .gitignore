@@ -98,3 +98,6 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 *.png
+Assets/Videos/Intro.meta
+Assets/Videos/Intro/Intro.mp4
+Assets/Videos/Intro/Intro.mp4.meta

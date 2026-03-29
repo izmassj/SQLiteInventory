@@ -23,6 +23,15 @@ public sealed class InventoryRepository
         );
     }
 
+    public int GetQuantity(int userId, int itemId)
+    {
+        return _db.ExecuteScalar<int>(
+            "SELECT COALESCE(quantity, 0) FROM inventory WHERE user_id = @u AND item_id = @i;",
+            ("@u", userId),
+            ("@i", itemId)
+        );
+    }
+
     public void UpsertInventoryItem(int userId, int itemId, int quantity)
     {
         if (quantity <= 0)

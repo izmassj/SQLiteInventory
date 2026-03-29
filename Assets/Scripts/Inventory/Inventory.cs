@@ -134,12 +134,15 @@ public class Inventory : MonoBehaviour
         }
     }
 
-    public void ClearInventory()
+    public void ClearInventory(bool resetPlayerState = true)
     {
         foreach (var pocket in pockets.Values)
         {
             pocket.Clear();
         }
+
+        if (!resetPlayerState || IsInBulkUpdate)
+            return;
 
         var player = FindAnyObjectByType<PlayerMovementController>();
         if (player != null)

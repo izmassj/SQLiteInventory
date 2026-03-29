@@ -16,7 +16,10 @@ public class Item : ScriptableObject
     public bool stackable;
     public int maxStack;
 
-    // para poder buscar cosas mejor en el buscador de unity
+    [Header("Shop")]
+    public int buyPrice = 100;
+    public int sellPrice = 50;
+
     [SerializeField, HideInInspector]
     private string typeSearch;
 
@@ -30,5 +33,3 @@ public class Item : ScriptableObject
     }
     #endif
 }
-
-

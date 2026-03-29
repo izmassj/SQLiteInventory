@@ -1,12 +1,9 @@
 using UnityEngine;
 
-/// <summary>
-/// Migraciones simples usando PRAGMA user_version.
-/// v2 = esquema simplificado (users/items/inventory/inventory_log).
-/// </summary>
 public static class SchemaMigrator
 {
-    private const int CURRENT_VERSION = 2;
+    private const int CURRENT_VERSION = 3;
+    private const int DEFAULT_START_MONEY = 3000;
 
     public static void ApplyMigrations(SqliteDatabase db)
     {
@@ -16,13 +13,19 @@ public static class SchemaMigrator
 
         if (version <= 0)
         {
-            CreateSimplifiedSchema(db);
+            CreateSchema(db);
             db.ExecuteNonQuery($"PRAGMA user_version = {CURRENT_VERSION};");
             return;
         }
+
+        if (version < 3)
+        {
+            MigrateToV3(db);
+            db.ExecuteNonQuery("PRAGMA user_version = 3;");
+        }
     }
 
-    private static void CreateSimplifiedSchema(SqliteDatabase db)
+    private static void CreateSchema(SqliteDatabase db)
     {
         db.ExecuteNonQuery(@"
             CREATE TABLE IF NOT EXISTS users (
@@ -30,6 +33,16 @@ public static class SchemaMigrator
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
                 created_at TEXT
+            );");
+
+        db.ExecuteNonQuery(@"
+            CREATE TABLE IF NOT EXISTS player (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                money INTEGER NOT NULL DEFAULT 0 CHECK (money >= 0),
+                created_at TEXT,
+                updated_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );");
 
         db.ExecuteNonQuery(@"
@@ -63,5 +76,25 @@ public static class SchemaMigrator
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
             );");
+    }
+
+    private static void MigrateToV3(SqliteDatabase db)
+    {
+        db.ExecuteNonQuery(@"
+            CREATE TABLE IF NOT EXISTS player (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                money INTEGER NOT NULL DEFAULT 0 CHECK (money >= 0),
+                created_at TEXT,
+                updated_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );");
+
+        db.ExecuteNonQuery(@"
+            INSERT OR IGNORE INTO player(user_id, money, created_at, updated_at)
+            SELECT id, @m, datetime('now'), datetime('now')
+            FROM users;",
+            ("@m", DEFAULT_START_MONEY)
+        );
     }
 }
